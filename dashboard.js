@@ -9,7 +9,10 @@ import {
   aggregateUsage,
   el,
   showError,
+  renderReceipt,
 } from "./shared.js";
+import { BADGES } from "./playful.js";
+import { renderMascot, renderReminder } from "./mascot.js";
 let state,
   days = 1;
 
@@ -170,6 +173,28 @@ function renderSessions() {
 
 function render() {
   const active = state.shield.enabled;
+  renderMascot(
+    $("#dashboard-mascot"),
+    state.preferences,
+    active ? "resting" : "happy",
+    active
+      ? "Milo is enjoying the quiet."
+      : "Milo is ready for your next session.",
+  );
+  $(".shield-emblem").classList.toggle("has-mascot", state.preferences.playful);
+  renderReminder(
+    $("#session-reminder"),
+    active ? state.preferences.reminder : "",
+  );
+  $("#playful").checked = state.preferences.playful;
+  $("#meme-effects").checked = state.preferences.memeEffects;
+  if (
+    document.activeElement !== $("#reminder") &&
+    !$("#reminder").dataset.dirty
+  )
+    $("#reminder").value = state.preferences.reminder;
+  renderAchievements();
+  renderReceipts();
   $("#date-label").textContent = new Date()
     .toLocaleDateString(undefined, {
       weekday: "long",
@@ -208,6 +233,59 @@ function render() {
   renderWeek();
   renderDomains();
   renderSessions();
+}
+function renderAchievements() {
+  $("#achievement-card").hidden = !state.preferences.playful;
+  const root = $("#achievement-list");
+  root.replaceChildren();
+  $("#badge-count").textContent =
+    `${BADGES.filter((badge) => state.milestones.earned[badge.id]).length} / 3`;
+  $("#blocked-count").textContent =
+    `${state.milestones.blockedVisits} blocked-page encounters. Reloading the same blocked tab does not add another.`;
+  for (const badge of BADGES) {
+    const earned = state.milestones.earned[badge.id],
+      card = el("article", `achievement${earned ? " earned" : ""}`);
+    const icon = el("span", "badge-icon", badge.icon);
+    icon.setAttribute("aria-hidden", "true");
+    card.append(
+      icon,
+      el("h3", "", badge.title),
+      el("p", "small muted", badge.description),
+      el(
+        "span",
+        "badge-state",
+        earned
+          ? `Earned ${new Date(earned).toLocaleDateString()}`
+          : `${Math.min(state.milestones[badge.counter], badge.target)} / ${badge.target}`,
+      ),
+    );
+    root.append(card);
+  }
+}
+function renderReceipts() {
+  $("#receipts-card").hidden = !state.preferences.playful;
+  const root = $("#receipt-list");
+  root.replaceChildren();
+  if (!state.receipts.length)
+    root.append(
+      el(
+        "div",
+        "empty",
+        "Your first seven-answer unlock will leave a receipt here.",
+      ),
+    );
+  for (const receipt of state.receipts) {
+    const details = el("details", "receipt-details"),
+      summary = el(
+        "summary",
+        "",
+        `${new Date(receipt.time).toLocaleString()} · ${receipt.action === "remove" ? `Allowed ${receipt.domain}` : "Shield turned off"}`,
+      ),
+      content = el("div", "escape-receipt");
+    renderReceipt(content, receipt);
+    details.append(summary, content);
+    root.append(details);
+  }
 }
 async function reload() {
   state = (await send("GET_STATE")).state;
@@ -289,13 +367,49 @@ $("#export").addEventListener("click", () =>
 $("#clear").addEventListener("click", () => {
   if (
     confirm(
-      "Clear website usage and completed Shield history? Your active Shield timer and blocked websites will be kept.",
+      "Clear website usage, completed Shield history, badges, and receipts? Your active Shield timer, blocked websites, reminder, and preferences will be kept.",
     )
   )
     withButton($("#clear"), async () => {
       await send("CLEAR_STATS");
       await reload();
     });
+});
+for (const id of ["playful", "meme-effects"])
+  $("#" + id).addEventListener("change", async () => {
+    const control = $("#" + id);
+    control.disabled = true;
+    try {
+      await send("SET_PREFERENCES", {
+        ...state.preferences,
+        playful: $("#playful").checked,
+        memeEffects: $("#meme-effects").checked,
+      });
+      await reload();
+    } catch (error) {
+      render();
+      showError(error);
+    } finally {
+      control.disabled = false;
+    }
+  });
+$("#reminder").addEventListener("input", () => {
+  $("#reminder").dataset.dirty = "true";
+  $("#reminder-status").textContent = "Unsaved changes";
+});
+$("#reminder-form").addEventListener("submit", (event) => {
+  event.preventDefault();
+  withButton($("#save-reminder"), async () => {
+    await send("SET_PREFERENCES", {
+      ...state.preferences,
+      reminder: $("#reminder").value,
+    });
+    delete $("#reminder").dataset.dirty;
+    await reload();
+    $("#reminder-status").textContent = state.preferences.reminder
+      ? "Reminder saved."
+      : "Reminder removed.";
+  });
 });
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === "local" && changes.state) {

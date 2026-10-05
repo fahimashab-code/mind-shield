@@ -65,3 +65,38 @@ export function el(tag, className, text) {
   if (text !== undefined) node.textContent = text;
   return node;
 }
+
+export function renderReceipt(root, receipt) {
+  root.replaceChildren();
+  root.append(
+    el("p", "eyebrow", "MIND SHIELD · ESCAPE RECEIPT"),
+    el("h2", "", "Seven calculations completed."),
+  );
+  const list = el("dl", "receipt-fields");
+  const fields = [
+    ["Issued", new Date(receipt.time).toLocaleString()],
+    [
+      "Your choice",
+      receipt.action === "remove"
+        ? `Allow ${receipt.domain}`
+        : "Turn off Shield",
+    ],
+    [
+      receipt.shieldStillOn ? "Protected so far" : "Protected this session",
+      formatDuration(receipt.protectedMs),
+    ],
+    ["Math completed", "5 multiplications + 2 divisions"],
+    [
+      "Shield",
+      receipt.shieldStillOn
+        ? "Still protecting other websites"
+        : "Off — session saved",
+    ],
+  ];
+  for (const [label, value] of fields)
+    list.append(el("dt", "", label), el("dd", "", value));
+  root.append(
+    list,
+    el("p", "receipt-footer", "Please spend this freedom wisely."),
+  );
+}

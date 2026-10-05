@@ -23,6 +23,42 @@
           <span>5 multiplications · 2 divisions</span
           ><span>Whole-number answers</span>
         </div>
+        <section
+          id="boss-battle"
+          class="boss-battle"
+          hidden
+          aria-label="Distraction Monster battle"
+        >
+          <img
+            src="icons/distraction-monster.svg"
+            width="76"
+            height="76"
+            alt="A small, mischievous Distraction Monster"
+          />
+          <div class="boss-details">
+            <p class="eyebrow">BOSS BATTLE</p>
+            <h2 id="boss-name">Distraction Monster</h2>
+            <p id="boss-line" class="small muted">
+              Seven good answers. One dramatic monster.
+            </p>
+            <progress
+              id="boss-health"
+              max="7"
+              value="7"
+              aria-label="Distraction Monster health"
+            >
+              7
+            </progress>
+          </div>
+        </section>
+        <p
+          id="challenge-progress"
+          class="challenge-progress"
+          role="status"
+          aria-live="polite"
+        >
+          0 of 7 answers verified. Shield stays on.
+        </p>
         <form id="challenge-form">
           <div id="questions" class="questions"></div>
           <p id="notice" class="notice" role="alert" hidden></p>
@@ -30,10 +66,16 @@
             <button id="cancel" class="button secondary" type="button">
               Keep my Shield</button
             ><button id="submit" class="button primary" type="submit" disabled>
-              Check all answers
+              Check answers
             </button>
           </div>
         </form>
+        <section
+          id="escape-receipt"
+          class="escape-receipt"
+          hidden
+          aria-label="Escape receipt"
+        ></section>
         <p class="micro" id="expiry">
           Challenge valid for 30 minutes. Closing this tab keeps Shield on.
         </p>

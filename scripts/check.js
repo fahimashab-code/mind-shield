@@ -9,6 +9,11 @@ for (const path of [
   manifest.options_page,
   ...Object.values(manifest.icons),
   ...manifest.web_accessible_resources.flatMap((entry) => entry.resources),
+  "assets/crying.gif",
+  "icons/milo-resting.svg",
+  "icons/milo-suspicious.svg",
+  "icons/milo-happy.svg",
+  "icons/distraction-monster.svg",
 ]) {
   assert.ok(existsSync(path), `Missing manifest resource: ${path}`);
 }

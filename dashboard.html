@@ -30,7 +30,7 @@
         <div class="sidebar-bottom">
           <span class="local-dot"></span> Everything stays here.
           <p>Your data lives on this device.</p>
-          <span class="version">VERSION 1.0.0</span>
+          <span class="version">VERSION 1.1.0</span>
         </div>
       </aside>
       <main class="workspace">
@@ -58,11 +58,17 @@
               </div>
               <div class="shield-emblem">
                 <img src="icons/mark.svg" width="76" height="76" alt="" />
+                <div id="dashboard-mascot" hidden></div>
               </div>
               <h2 id="shield-heading">Ready when you are.</h2>
               <p id="shield-description">
                 Switch on your Shield and step away from distraction.
               </p>
+              <div
+                id="session-reminder"
+                class="personal-reminder shield-reminder"
+                hidden
+              ></div>
               <div class="session-clock" id="timer">00:00:00</div>
               <span class="clock-label" id="clock-label">CURRENT SESSION</span
               ><button class="button cream" id="toggle" disabled>
@@ -111,6 +117,20 @@
               </section>
             </div>
           </div>
+          <section id="achievement-card" class="card achievements-card" hidden>
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">LITTLE WINS</p>
+                <h2>Your Shield collection</h2>
+                <p class="muted small">
+                  Small milestones, earned on this device.
+                </p>
+              </div>
+              <span class="count" id="badge-count">0 / 3</span>
+            </div>
+            <div id="achievement-list" class="achievement-grid"></div>
+            <p class="micro" id="blocked-count"></p>
+          </section>
           <section class="card usage-card">
             <div class="section-heading">
               <div>
@@ -136,6 +156,18 @@
               <span class="eyebrow">LAST 100 SESSIONS</span>
             </div>
             <div id="session-list"></div>
+          </section>
+          <section id="receipts-card" class="card receipts-card" hidden>
+            <div class="section-heading">
+              <div>
+                <h2>Your escape receipts</h2>
+                <p class="muted small">
+                  Seven calculations. A conscious choice.
+                </p>
+              </div>
+              <span class="eyebrow">LAST 20 UNLOCKS</span>
+            </div>
+            <div id="receipt-list"></div>
           </section>
         </section>
         <section id="websites" class="panel" hidden>
@@ -188,6 +220,63 @@
               </p>
             </div>
           </div>
+          <section class="card">
+            <p class="eyebrow">A LITTLE PERSONALITY</p>
+            <div class="setting-row">
+              <div>
+                <h2>Playful mode</h2>
+                <p class="muted small">
+                  Milo the Shield, gentle jokes, a math boss battle, achievement
+                  badges, and escape receipts. No sounds or notifications.
+                </p>
+              </div>
+              <label class="switch"
+                ><input id="playful" type="checkbox" role="switch" /><span
+                  >Playful mode</span
+                ></label
+              >
+            </div>
+            <div class="setting-row meme-setting">
+              <div>
+                <h2>Crying GIF effects</h2>
+                <p class="muted small">
+                  Your GIF gradually appears around challenges and blocked
+                  pages, up to 12 copies. Never covers the controls. Hidden when
+                  your device requests reduced motion.
+                </p>
+              </div>
+              <label class="switch"
+                ><input id="meme-effects" type="checkbox" role="switch" /><span
+                  >Crying GIF effects</span
+                ></label
+              >
+            </div>
+            <form id="reminder-form" class="reminder-form">
+              <label for="reminder">A reminder from yourself</label>
+              <textarea
+                id="reminder"
+                rows="3"
+                maxlength="240"
+                placeholder="I opened this browser to finish the assignment."
+                aria-describedby="reminder-hint"
+              ></textarea>
+              <div class="reminder-actions">
+                <p id="reminder-hint" class="micro">
+                  Shown in the popup, during Shield sessions, and on blocked
+                  pages. Up to 240 characters; leave empty to remove.
+                </p>
+                <button id="save-reminder" type="submit" class="button primary">
+                  Save reminder
+                </button>
+              </div>
+              <p
+                id="reminder-status"
+                class="small"
+                role="status"
+                aria-live="polite"
+              ></p>
+            </form>
+          </section>
           <section class="card setting-row">
             <div>
               <h2>Website usage tracking</h2>
@@ -220,10 +309,11 @@
             <p class="eyebrow">LOCAL BY DESIGN</p>
             <h2>No account. No uploads.</h2>
             <p class="muted">
-              Mind Shield stores domains, time totals, settings, and session
-              timestamps. It does not collect page contents, typed text, or
-              passwords. Usage history is kept for 90 days; the last 100
-              completed Shield sessions are saved.
+              Mind Shield stores domains, time totals, your chosen reminder,
+              settings, session timestamps, achievements, and the last 20 unlock
+              receipts. It does not collect text typed on websites, page
+              contents, or passwords. Usage history is kept for 90 days; the
+              last 100 completed Shield sessions are saved.
             </p>
             <p class="muted small">
               Website access lets Chrome redirect your blocked sites. Tab access
@@ -238,7 +328,8 @@
               </button>
             </div>
             <p class="micro">
-              Clearing statistics keeps your blocked list and active Shield
+              Clearing statistics also resets achievements and receipts. It
+              keeps your reminder, preferences, blocked list, and active Shield
               timer. Removing the extension deletes its local data.
             </p>
           </section>

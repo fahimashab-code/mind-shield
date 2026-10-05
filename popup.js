@@ -9,6 +9,7 @@ import {
   aggregateUsage,
   showError,
 } from "./shared.js";
+import { renderMascot, renderReminder } from "./mascot.js";
 let state;
 function render() {
   const active = state.shield.enabled;
@@ -32,6 +33,14 @@ function render() {
     aggregateUsage(state, 1).reduce((sum, [, ms]) => sum + ms, 0),
   );
   $("#toggle").disabled = false;
+  renderMascot(
+    $("#popup-mascot"),
+    state.preferences,
+    active ? "resting" : "happy",
+    active ? "Milo is keeping watch." : "Milo is ready when you are.",
+  );
+  $(".popup-symbol").classList.toggle("has-mascot", state.preferences.playful);
+  renderReminder($("#popup-reminder"), state.preferences.reminder);
 }
 $("#toggle").addEventListener("click", () =>
   withButton($("#toggle"), async () => {

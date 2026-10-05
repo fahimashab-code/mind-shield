@@ -164,6 +164,66 @@ test("background worker enforces protection, accounts foreground time, and handl
       "failed rule installation must roll back",
     );
     assert.equal((await send("ENABLE")).ok, true);
+    assert.equal(
+      (await state()).milestones.sessionsStarted,
+      1,
+      "failed activation must not award a badge",
+    );
+    const blockedFrom = {
+      id: chrome.runtime.id,
+      url: chrome.runtime.getURL("blocked.html?site=facebook.com"),
+    };
+    const presentation = await send("GET_BLOCKED_VIEW", {}, blockedFrom);
+    assert.equal(presentation.ok, true);
+    assert.equal(presentation.state, undefined);
+    assert.equal((await send("GET_STATE", {}, blockedFrom)).ok, false);
+    assert.equal(
+      (
+        await send(
+          "SET_PREFERENCES",
+          { playful: false, reminder: "test" },
+          blockedFrom,
+        )
+      ).ok,
+      false,
+    );
+    assert.equal(
+      (
+        await send("SET_PREFERENCES", {
+          playful: true,
+          memeEffects: false,
+          reminder: " Keep working ",
+        })
+      ).ok,
+      true,
+    );
+    assert.equal((await state()).preferences.reminder, "Keep working");
+    assert.equal(
+      (
+        await send("SET_PREFERENCES", {
+          playful: true,
+          reminder: "x".repeat(241),
+        })
+      ).ok,
+      false,
+    );
+    for (let i = 0; i < 5; i++) {
+      const blockedTab = {
+        id: 10 + i,
+        incognito: false,
+        url: chrome.runtime.getURL("blocked.html?site=facebook.com"),
+      };
+      events.updated[0](blockedTab.id, { status: "complete" }, blockedTab);
+      await state();
+      events.updated[0](blockedTab.id, { status: "complete" }, blockedTab);
+      await state();
+    }
+    assert.equal(
+      (await state()).milestones.blockedVisits,
+      5,
+      "blocked reloads must not inflate badges",
+    );
+    assert.ok((await state()).milestones.earned.tabResister);
     const startedAt = (await state()).shield.startedAt;
     assert.equal(rules.length, initialState().domains.length);
     const challenge = (
@@ -185,6 +245,7 @@ test("background worker enforces protection, accounts foreground time, and handl
       false,
     );
     assert.equal((await state()).shield.enabled, true);
+    assert.equal((await state()).receipts.length, 0);
     await send("CANCEL_CHALLENGE", { id: challenge.id });
     assert.equal((await state()).shield.enabled, true);
     await send("CLEAR_STATS");
@@ -245,8 +306,39 @@ test("background worker enforces protection, accounts foreground time, and handl
       (await send("SUBMIT_CHALLENGE", { id: "forged-id", answers })).ok,
       false,
     );
+    const partial = answers.map((answer, index) => (index === 0 ? answer : ""));
+    const checked = await send("CHECK_ANSWERS", {
+      id: next.id,
+      answers: partial,
+    });
+    assert.equal(checked.challenge.solved[0], true);
+    assert.equal(typeof checked.challenge.questions[0], "string");
     assert.equal(
-      (await send("SUBMIT_CHALLENGE", { id: next.id, answers })).ok,
+      (
+        await send("SUBMIT_CHALLENGE", {
+          id: next.id,
+          answers: [],
+          solved: Array(7).fill(true),
+        })
+      ).ok,
+      false,
+    );
+    await send("CHECK_ANSWERS", { id: next.id, answers });
+    failRules = true;
+    const beforeFailure = structuredClone(await state());
+    assert.equal(
+      (await send("SUBMIT_CHALLENGE", { id: next.id, answers: [] })).ok,
+      false,
+    );
+    assert.equal((await state()).shield.enabled, true);
+    assert.deepEqual(
+      (await state()).receipts,
+      beforeFailure.receipts,
+      "failed unlock must not issue a receipt",
+    );
+    assert.deepEqual((await state()).milestones, beforeFailure.milestones);
+    assert.equal(
+      (await send("SUBMIT_CHALLENGE", { id: next.id, answers: [] })).ok,
       true,
     );
     current = await state();
@@ -254,6 +346,10 @@ test("background worker enforces protection, accounts foreground time, and handl
     assert.equal(rules.length, 0);
     assert.equal(current.shield.sessions.length, 1);
     assert.ok(current.shield.totalMs >= 31 * 60_000);
+    assert.equal(current.receipts.length, 2);
+    assert.equal(current.receipts[0].shieldStillOn, false);
+    assert.equal(current.receipts[1].shieldStillOn, true);
+    assert.ok(current.milestones.earned.mathEscape);
   } finally {
     Date.now = realNow;
   }

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Mind Shield",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Protect your focus with website blocking, a math unlock challenge, and private website usage tracking.",
   "minimum_chrome_version": "120",
   "permissions": [

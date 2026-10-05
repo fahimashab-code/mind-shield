@@ -22,11 +22,19 @@ export const CHECKPOINT_LIMIT_MS = 45_000;
 
 export function initialState() {
   return {
-    version: 1,
+    version: 2,
     shield: { enabled: false, startedAt: null, totalMs: 0, sessions: [] },
     domains: [...DEFAULT_DOMAINS],
     tracking: true,
     usage: {},
+    preferences: { playful: true, memeEffects: true, reminder: "" },
+    milestones: {
+      sessionsStarted: 0,
+      mathUnlocks: 0,
+      blockedVisits: 0,
+      earned: {},
+    },
+    receipts: [],
   };
 }
 
