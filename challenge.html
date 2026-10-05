@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mind Shield · A deliberate pause</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="standalone-body">
+    <main class="challenge-shell">
+      <a class="brand standalone-brand" href="dashboard.html"
+        ><img src="icons/mark.svg" alt="" width="34" height="34" />Mind
+        Shield</a
+      >
+      <section class="card challenge-card">
+        <p class="eyebrow">A DELIBERATE PAUSE</p>
+        <h1>Make it a conscious choice.</h1>
+        <p class="muted" id="action-description">
+          Solve all seven problems to continue. Your Shield stays active while
+          you work.
+        </p>
+        <div class="challenge-summary">
+          <span>5 multiplications · 2 divisions</span
+          ><span>Whole-number answers</span>
+        </div>
+        <form id="challenge-form">
+          <div id="questions" class="questions"></div>
+          <p id="notice" class="notice" role="alert" hidden></p>
+          <div class="challenge-actions">
+            <button id="cancel" class="button secondary" type="button">
+              Keep my Shield</button
+            ><button id="submit" class="button primary" type="submit" disabled>
+              Check all answers
+            </button>
+          </div>
+        </form>
+        <p class="micro" id="expiry">
+          Challenge valid for 30 minutes. Closing this tab keeps Shield on.
+        </p>
+        <a class="text-link" href="dashboard.html">Back to dashboard ↗</a>
+      </section>
+    </main>
+    <script type="module" src="challenge.js"></script>
+  </body>
+</html>

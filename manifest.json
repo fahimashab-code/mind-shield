@@ -1,0 +1,40 @@
+{
+  "manifest_version": 3,
+  "name": "Mind Shield",
+  "version": "1.0.0",
+  "description": "Protect your focus with website blocking, a math unlock challenge, and private website usage tracking.",
+  "minimum_chrome_version": "120",
+  "permissions": [
+    "declarativeNetRequestWithHostAccess",
+    "storage",
+    "tabs",
+    "idle",
+    "alarms"
+  ],
+  "host_permissions": ["http://*/*", "https://*/*"],
+  "background": { "service_worker": "background.js", "type": "module" },
+  "action": {
+    "default_title": "Mind Shield",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/shield-16.png",
+      "32": "icons/shield-32.png",
+      "48": "icons/shield-48.png",
+      "128": "icons/shield-128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/shield-16.png",
+    "32": "icons/shield-32.png",
+    "48": "icons/shield-48.png",
+    "128": "icons/shield-128.png"
+  },
+  "options_page": "dashboard.html",
+  "incognito": "not_allowed",
+  "web_accessible_resources": [
+    { "resources": ["blocked.html"], "matches": ["http://*/*", "https://*/*"] }
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'none'; base-uri 'none'; connect-src 'none'"
+  }
+}

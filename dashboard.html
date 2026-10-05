@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mind Shield · Dashboard</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="dashboard-body">
+    <div class="app-layout">
+      <aside class="sidebar">
+        <a class="brand" href="dashboard.html"
+          ><img src="icons/mark.svg" alt="" width="34" height="34" /><span
+            >Mind Shield<small>MAKE ROOM FOR FOCUS</small></span
+          ></a
+        >
+        <nav aria-label="Dashboard">
+          <button
+            class="nav-item selected"
+            data-panel="overview"
+            aria-current="page"
+          >
+            <span aria-hidden="true">◫</span> Overview</button
+          ><button class="nav-item" data-panel="websites">
+            <span aria-hidden="true">⊘</span> Blocked websites</button
+          ><button class="nav-item" data-panel="settings">
+            <span aria-hidden="true">⚙</span> Settings & privacy
+          </button>
+        </nav>
+        <div class="sidebar-bottom">
+          <span class="local-dot"></span> Everything stays here.
+          <p>Your data lives on this device.</p>
+          <span class="version">VERSION 1.0.0</span>
+        </div>
+      </aside>
+      <main class="workspace">
+        <header class="topbar">
+          <span class="breadcrumb"
+            >YOUR FOCUS SPACE <span>/</span>
+            <strong id="page-label">Overview</strong></span
+          ><span class="status" id="status">Loading</span>
+        </header>
+        <p id="notice" class="notice" role="alert" hidden></p>
+        <section id="overview" class="panel">
+          <div class="page-heading">
+            <div>
+              <p class="eyebrow" id="date-label">TODAY</p>
+              <h1>Less noise. More intention.</h1>
+              <p class="muted">Give your attention somewhere better to go.</p>
+            </div>
+            <span class="heading-art" aria-hidden="true">✳</span>
+          </div>
+          <div class="overview-grid">
+            <section class="shield-card">
+              <div class="card-top">
+                <span class="eyebrow">YOUR SHIELD</span
+                ><span class="live-dot" id="live-dot"></span>
+              </div>
+              <div class="shield-emblem">
+                <img src="icons/mark.svg" width="76" height="76" alt="" />
+              </div>
+              <h2 id="shield-heading">Ready when you are.</h2>
+              <p id="shield-description">
+                Switch on your Shield and step away from distraction.
+              </p>
+              <div class="session-clock" id="timer">00:00:00</div>
+              <span class="clock-label" id="clock-label">CURRENT SESSION</span
+              ><button class="button cream" id="toggle" disabled>
+                Loading…
+              </button>
+              <p class="shield-footnote" id="shield-hint">
+                One click to start. Seven answers to stop.
+              </p>
+            </section>
+            <div class="overview-right">
+              <div class="metric-grid">
+                <section class="card metric">
+                  <span class="eyebrow">TOTAL PROTECTED TIME</span
+                  ><strong id="total-protected">—</strong>
+                  <p>Elapsed time with Shield enabled</p>
+                </section>
+                <section class="card metric">
+                  <span class="eyebrow">BROWSING TODAY</span
+                  ><strong id="today-total">—</strong>
+                  <p id="tracking-summary">Active browsing across websites</p>
+                </section>
+                <section class="card metric">
+                  <span class="eyebrow">WEBSITES ON YOUR LIST</span
+                  ><strong id="site-count">—</strong>
+                  <p>Including their subdomains</p>
+                </section>
+                <section class="card metric">
+                  <span class="eyebrow">COMPLETED SESSIONS</span
+                  ><strong id="session-count">—</strong>
+                  <p>From your saved session history</p>
+                </section>
+              </div>
+              <section class="card week-card">
+                <div class="section-heading">
+                  <div>
+                    <h2>Your week, at a glance</h2>
+                    <p class="muted small">Active browsing time each day</p>
+                  </div>
+                  <span class="eyebrow">LAST 7 DAYS</span>
+                </div>
+                <div
+                  class="week-chart"
+                  id="week-chart"
+                  aria-label="Daily browsing time"
+                ></div>
+              </section>
+            </div>
+          </div>
+          <section class="card usage-card">
+            <div class="section-heading">
+              <div>
+                <h2>Where your time goes</h2>
+                <p class="muted small">
+                  Only the foreground tab counts. Idle time takes a pause.
+                </p>
+              </div>
+              <div class="segmented" role="group" aria-label="Usage period">
+                <button class="selected" data-days="1" aria-pressed="true">
+                  Today</button
+                ><button data-days="7" aria-pressed="false">This week</button>
+              </div>
+            </div>
+            <div id="usage-list"></div>
+          </section>
+          <section class="card sessions-card">
+            <div class="section-heading">
+              <div>
+                <h2>Shield history</h2>
+                <p class="muted small">Small decisions. A little more space.</p>
+              </div>
+              <span class="eyebrow">LAST 100 SESSIONS</span>
+            </div>
+            <div id="session-list"></div>
+          </section>
+        </section>
+        <section id="websites" class="panel" hidden>
+          <div class="page-heading">
+            <div>
+              <p class="eyebrow">SET YOUR BOUNDARIES</p>
+              <h1>A quieter corner of the internet.</h1>
+              <p class="muted">
+                Choose the websites you want a little distance from.
+              </p>
+            </div>
+          </div>
+          <section class="card">
+            <h2>Add a website</h2>
+            <form id="add-form" class="add-form">
+              <label for="domain" class="sr-only">Website domain</label
+              ><input
+                id="domain"
+                placeholder="example.com"
+                type="text"
+                maxlength="2048"
+                autocomplete="off"
+                required
+              /><button class="button primary" type="submit" id="add-button">
+                Add website <span aria-hidden="true">+</span>
+              </button>
+            </form>
+            <p class="muted small">
+              Paste a domain or URL. All paths and subdomains are included.
+            </p>
+          </section>
+          <div class="section-heading list-heading">
+            <h2>
+              Your blocked websites
+              <span id="domain-count" class="count"></span>
+            </h2>
+            <p class="muted small" id="list-hint">
+              Removing a website while Shield is on requires the math challenge.
+            </p>
+          </div>
+          <div id="domain-list" class="domain-grid"></div>
+        </section>
+        <section id="settings" class="panel" hidden>
+          <div class="page-heading">
+            <div>
+              <p class="eyebrow">ON YOUR TERMS</p>
+              <h1>Your focus. Your data.</h1>
+              <p class="muted">
+                Simple controls, with everything kept on this device.
+              </p>
+            </div>
+          </div>
+          <section class="card setting-row">
+            <div>
+              <h2>Website usage tracking</h2>
+              <p class="muted small">
+                Track the active tab while Chrome is focused. Pause after 60
+                seconds without input.
+              </p>
+            </div>
+            <label class="switch"
+              ><input id="tracking" type="checkbox" role="switch" /><span
+                >Usage tracking</span
+              ></label
+            >
+          </section>
+          <section class="card">
+            <p class="eyebrow">THE UNLOCK CHALLENGE</p>
+            <h2>A deliberate pause before turning off.</h2>
+            <p class="muted">
+              Five multiplications: a three-digit number × a two-digit number.
+              Two divisions with whole-number answers. All seven must be
+              correct. Challenges expire after 30 minutes; Shield stays on until
+              you finish.
+            </p>
+            <p class="muted small">
+              Adding websites is always allowed. Removing websites while Shield
+              is active requires the same challenge.
+            </p>
+          </section>
+          <section class="card">
+            <p class="eyebrow">LOCAL BY DESIGN</p>
+            <h2>No account. No uploads.</h2>
+            <p class="muted">
+              Mind Shield stores domains, time totals, settings, and session
+              timestamps. It does not collect page contents, typed text, or
+              passwords. Usage history is kept for 90 days; the last 100
+              completed Shield sessions are saved.
+            </p>
+            <p class="muted small">
+              Website access lets Chrome redirect your blocked sites. Tab access
+              identifies the current domain. Idle detection pauses the tracker.
+              Alarms save usage periodically. Storage remembers your settings.
+            </p>
+            <div class="setting-actions">
+              <button id="export" class="button secondary">
+                Export my data ↓</button
+              ><button id="clear" class="button danger">
+                Clear statistics
+              </button>
+            </div>
+            <p class="micro">
+              Clearing statistics keeps your blocked list and active Shield
+              timer. Removing the extension deletes its local data.
+            </p>
+          </section>
+          <section class="card">
+            <h2>What the timers mean</h2>
+            <p class="muted">
+              Protected time is elapsed time with Shield enabled, including time
+              when Chrome is closed. Usage time estimates active foreground
+              browsing. Background tabs, other applications, incognito windows,
+              and Chrome internal pages are excluded.
+            </p>
+            <p class="muted small">
+              Usage is saved about every 30 seconds. Sleep, delayed alarms,
+              crashes, or idle detection can cause small differences. Shield
+              works in this Chrome profile; Chrome itself still lets you disable
+              or remove extensions.
+            </p>
+          </section>
+        </section>
+        <footer class="page-footer">
+          <span>Built for a more intentional internet.</span
+          ><span>Mind Shield · Local only</span>
+        </footer>
+      </main>
+    </div>
+    <script type="module" src="dashboard.js"></script>
+  </body>
+</html>
