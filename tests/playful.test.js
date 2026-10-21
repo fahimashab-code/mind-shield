@@ -14,6 +14,7 @@ test("upgrading version one preserves protection, websites and usage without inv
   delete legacy.preferences;
   delete legacy.milestones;
   delete legacy.receipts;
+  delete legacy.activity;
   legacy.version = 1;
   legacy.shield.enabled = true;
   legacy.shield.startedAt = 1234;
@@ -21,6 +22,8 @@ test("upgrading version one preserves protection, websites and usage without inv
   legacy.usage = { "2026-10-05": { "example.com": 1000 } };
   const before = structuredClone(legacy);
   upgradeState(legacy);
+  assert.equal(legacy.version, 3);
+  assert.deepEqual(legacy.activity, {});
   assert.deepEqual(legacy.shield, before.shield);
   assert.deepEqual(legacy.usage, before.usage);
   assert.deepEqual(legacy.domains, before.domains);

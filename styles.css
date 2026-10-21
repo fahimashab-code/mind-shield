@@ -602,6 +602,95 @@ strong {
 .usage-row:last-child {
   border-bottom: 0;
 }
+.site-search {
+  display: block;
+  width: 100%;
+  margin: 8px 0;
+}
+.activity-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 18px 0;
+}
+.activity-summary > div {
+  background: #f4f6ee;
+  border-radius: 12px;
+  padding: 16px;
+}
+.activity-summary strong {
+  display: block;
+  font-size: 26px;
+  color: #345b46;
+}
+.activity-summary span {
+  font-size: 11px;
+  color: #64755e;
+}
+.activity-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) repeat(3, 70px) 100px;
+  gap: 16px;
+  align-items: center;
+  border-bottom: 1px solid #edf0e7;
+  padding: 16px 0;
+  font-size: 12px;
+}
+.activity-row .site-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.activity-value {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.activity-row.table-label {
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: #77836d;
+}
+.activity-row.table-label span:not(:first-child) {
+  text-align: right;
+}
+.target-label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.target-label small {
+  display: block;
+  margin-top: 5px;
+  font-weight: normal;
+}
+.domain-card .site-name {
+  min-width: 0;
+}
+@media (max-width: 760px) {
+  .activity-row {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .activity-row .site-name {
+    grid-column: 1 / -1;
+  }
+  .activity-row.table-label {
+    display: none;
+  }
+  .activity-value {
+    text-align: left;
+    font-size: 12px;
+  }
+  .activity-value::before {
+    content: attr(data-label);
+    display: block;
+    color: #64755e;
+    font-size: 9px;
+    font-weight: normal;
+    margin-bottom: 6px;
+  }
+  .activity-summary > div {
+    padding: 10px;
+  }
+}
 .usage-row.table-label {
   font-size: 8px;
   letter-spacing: 1.2px;
@@ -662,7 +751,8 @@ strong {
   gap: 12px;
   margin: 20px 0 12px;
 }
-input[type="text"] {
+input[type="text"],
+input[type="search"] {
   border: 1px solid var(--line);
   border-radius: 9px;
   background: #fcfcf7;

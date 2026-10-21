@@ -7,6 +7,7 @@ import {
   formatDuration,
   dayKey,
   aggregateUsage,
+  aggregateActivity,
   el,
   showError,
   renderReceipt,
@@ -25,43 +26,69 @@ function renderTimers() {
 }
 
 function renderUsage() {
-  const rows = aggregateUsage(state, days),
+  const all = aggregateActivity(state, days),
     root = $("#usage-list");
+  const search = $("#site-search").value.trim().toLowerCase();
+  const rows = all.filter(
+    ({ host }) =>
+      host.includes(search) || (host === "x.com" && "twitter".includes(search)),
+  );
+  $("#period-visits").textContent = rows
+    .reduce((n, row) => n + row.visits, 0)
+    .toLocaleString();
+  $("#period-hops").textContent = rows
+    .reduce((n, row) => n + row.hops, 0)
+    .toLocaleString();
+  $("#period-blocked").textContent = rows
+    .reduce((n, row) => n + row.blocked, 0)
+    .toLocaleString();
+  $("#activity-scope").textContent =
+    `${days === 1 ? "Today" : "Last 7 days"}${search ? " · matching websites" : " · all websites"}${state.tracking ? "" : " · tracking paused"}`;
   root.replaceChildren();
   if (!rows.length) {
     root.append(
       el(
         "div",
         "empty",
-        "Your time has a clean slate. Browse a website to see it here.",
+        search
+          ? "No matching websites in this period."
+          : "Browse a website to start seeing your time, visits, and tab hops here.",
       ),
     );
     return;
   }
-  const total = rows.reduce((sum, [, ms]) => sum + ms, 0);
-  const header = el("div", "usage-row table-label");
+  const header = el("div", "activity-row table-label");
   header.append(
     el("span", "", "WEBSITE"),
-    el("span", "", "SHARE OF TIME"),
+    el("span", "", "VISITS"),
+    el("span", "", "TAB HOPS"),
+    el("span", "", "BLOCKED"),
     el("span", "", "ACTIVE TIME"),
   );
   root.append(header);
-  for (const [host, ms] of rows) {
-    const row = el("div", "usage-row"),
+  for (const { host, ms, visits, hops, blocked } of rows) {
+    const row = el("div", "activity-row"),
       name = el("div", "site-name");
     name.append(
       el("span", "site-avatar", host[0].toUpperCase()),
       el("span", "", host),
     );
-    const meter = el("div", "meter"),
-      fill = el("div", "meter-fill");
-    fill.style.width = `${(ms / total) * 100}%`;
-    meter.append(fill);
-    meter.setAttribute(
-      "aria-label",
-      `${Math.round((ms / total) * 100)} percent of browsing time`,
-    );
-    row.append(name, meter, el("strong", "time-value", formatDuration(ms)));
+    row.append(name);
+    for (const [label, value] of [
+      ["Visits", visits],
+      ["Tab hops", hops],
+      ["Blocked", blocked],
+      ["Active time", formatDuration(ms)],
+    ]) {
+      const cell = el(
+        "strong",
+        "activity-value",
+        typeof value === "number" ? value.toLocaleString() : value,
+      );
+      cell.dataset.label = label;
+      cell.setAttribute("aria-label", `${label}: ${value}`);
+      row.append(cell);
+    }
     root.append(row);
   }
 }
@@ -117,10 +144,18 @@ function renderDomains() {
   for (const domain of state.domains) {
     const card = el("div", "card domain-card"),
       details = el("div", "site-name");
-    details.append(
-      el("span", "site-avatar", domain[0].toUpperCase()),
+    const label = el("div", "target-label");
+    label.append(
       el("strong", "", domain),
+      el(
+        "small",
+        "muted",
+        domain.includes("/")
+          ? "This path and its subpages"
+          : "Entire website and subdomains",
+      ),
     );
+    details.append(el("span", "site-avatar", domain[0].toUpperCase()), label);
     const remove = el("button", "remove-button", "×");
     remove.type = "button";
     remove.setAttribute("aria-label", `Remove ${domain}`);
@@ -209,7 +244,7 @@ function render() {
     ? "Your focus is protected."
     : "Ready when you are.";
   $("#shield-description").textContent = active
-    ? `${state.domains.length} websites out of your way. Make this time yours.`
+    ? `${state.domains.length} website and path rules protecting your focus.`
     : "Switch on your Shield and step away from distraction.";
   $("#clock-label").textContent = active
     ? "CURRENT SHIELD SESSION"
@@ -313,6 +348,9 @@ for (const button of document.querySelectorAll("[data-days]"))
     }
     if (state) renderUsage();
   });
+$("#site-search").addEventListener("input", () => {
+  if (state) renderUsage();
+});
 $("#toggle").addEventListener("click", () =>
   withButton($("#toggle"), async () => {
     if (state.shield.enabled) await requestAction({ type: "disable" });
@@ -367,7 +405,7 @@ $("#export").addEventListener("click", () =>
 $("#clear").addEventListener("click", () => {
   if (
     confirm(
-      "Clear website usage, completed Shield history, badges, and receipts? Your active Shield timer, blocked websites, reminder, and preferences will be kept.",
+      "Clear website time, visit counts, tab hops, blocked counts, completed Shield history, badges, and receipts? Your active Shield timer, blocked websites, reminder, and preferences will be kept.",
     )
   )
     withButton($("#clear"), async () => {

@@ -59,6 +59,35 @@ export function aggregateUsage(state, days) {
   return Object.entries(totals).sort((a, b) => b[1] - a[1]);
 }
 
+export function aggregateActivity(state, days) {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - days + 1);
+  const from = dayKey(cutoff.getTime()),
+    to = dayKey(Date.now());
+  const totals = new Map(
+    aggregateUsage(state, days).map(([host, ms]) => [
+      host,
+      { host, ms, visits: 0, hops: 0, blocked: 0 },
+    ]),
+  );
+  for (const [day, sites] of Object.entries(state.activity || {})) {
+    if (day < from || day > to) continue;
+    for (const [host, counts] of Object.entries(sites)) {
+      if (!totals.has(host))
+        totals.set(host, { host, ms: 0, visits: 0, hops: 0, blocked: 0 });
+      for (const kind of ["visits", "hops", "blocked"])
+        totals.get(host)[kind] += counts[kind] || 0;
+    }
+  }
+  return [...totals.values()].sort(
+    (a, b) =>
+      b.ms - a.ms ||
+      b.visits - a.visits ||
+      b.hops - a.hops ||
+      a.host.localeCompare(b.host),
+  );
+}
+
 export function el(tag, className, text) {
   const node = document.createElement(tag);
   if (className) node.className = className;

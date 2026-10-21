@@ -14,14 +14,35 @@ There is no build step, server, account, or runtime dependency. Keep the folder 
 
 ## How it works
 
-- **Shield:** one click to enable. Default blocked sites include Facebook, Instagram, LinkedIn, X/Twitter, TikTok, Reddit, Threads, Snapchat, Pinterest, Tumblr, Discord, Chess.com, and Lichess. Domains include all paths and subdomains. Add up to 200 websites. Existing tabs on blocked sites are redirected when Shield is enabled.
+- **Shield:** one click to enable. Default blocked sites include Facebook, Instagram, LinkedIn, X/Twitter, TikTok, Reddit, Threads, Snapchat, Pinterest, Tumblr, Discord, Chess.com, and Lichess. Add up to 200 website or path rules. A domain blocks all paths and subdomains; a URL path blocks only that path and its subpages. Existing matching tabs are redirected when Shield is enabled.
 - **Unlock challenge:** turning Shield off requires five three-digit × two-digit multiplication problems and two exact division problems. Check answers individually or together; verified answers are saved for that challenge and survive closing the tab. Each correct answer damages the Distraction Monster. All seven must be correct, followed by a final confirmation. Answers are checked in the background worker. Closing or cancelling keeps Shield on. Challenges expire after 30 minutes; closing Chrome ends a pending challenge.
 - **List protection:** adding a website is always allowed. Removing one while Shield is enabled requires the same math challenge. Shield remains on after an approved removal.
 - **Protected time:** elapsed time from enabling Shield to successfully disabling it. Includes time while Chrome is closed. Shield state, rules, and start time persist across browser restarts. This measures protection in this Chrome profile, not verified abstinence on all devices.
 - **Usage time:** estimates time for the active website in the focused Chrome window while the computer is active. Background tabs, extension pages, Chrome internal pages, other applications, and incognito are excluded. Tracking works while Shield is off too, and can be paused independently.
-- **Dashboard:** today's usage, the last seven days, website totals, the last 100 completed Shield sessions, a blocked website list, data export, and clearing statistics.
+- **Dashboard:** today's usage, the last seven days, per-website visits, tab hops, blocked encounters and active time, searchable website totals, the last 100 completed Shield sessions, a blocked list, data export, and clearing statistics.
 
 Shield stays on until you complete the challenge; there is no automatic countdown expiry. No keyword blocking is included.
+
+## New in version 1.2
+
+### Block just a section of a website
+
+In **Blocked websites**, enter `sms.scpc.com/revenue` to block `/revenue`, `/revenue/`, and `/revenue/monthly`. `/uptime`, the home page, and `/revenue-other` remain available. Add `sms.scpc.com/uptime` separately to block that section too. Entering only `sms.scpc.com` still blocks the entire website.
+
+Paths are case-sensitive and also apply to subdomains of the entered host. Rules cover HTTP and HTTPS on any port. A trailing slash is normalized away. Query strings and fragments in rule input are rejected with an explanation so they cannot accidentally create a broader rule. Query strings on a visited blocked path do not bypass it. Hash-only routing is not a separate blocking target. For web apps that change the pathname through browser history, navigation is caught after the URL changes; network navigations are redirected by Chrome's request rules.
+
+If you previously added a whole-site rule, remove it before adding a narrower path for that site. The dashboard explains when an existing rule already covers your new entry. Removing either a domain or a path while Shield is on still requires seven math answers.
+
+### See repeated visits and tab hopping
+
+Open **Overview → Your browsing patterns**. Choose **Today** or **This week** and search a domain or a name such as Facebook, YouTube, or Twitter (also finds `x.com`). Summary numbers follow the selected period and search.
+
+- **Visits:** top-level page loads, reloads, and history-based in-app URL changes while that website tab is foreground, Chrome is focused, and the computer is active. Switching to an already-loaded tab does not add a visit. Background loads are excluded. A history update that keeps the URL unchanged can still produce a navigation event and a visit; this is a navigation count, not a count of unique pages.
+- **Tab hops:** switches to a different loaded website tab, including returns and moves between Chrome windows. Returning to the same tab after using another application, refreshing the dashboard, and timer checkpoints do not add hops. A new tab with no website loaded yet does not add a per-site hop.
+- **Blocked:** blocked-page encounters, including attempts that never become successful visits. Reloading the same blocked tab does not add another; navigating away and trying again does. These can include background tabs redirected when Shield starts. The existing lifetime achievement counter remains independent.
+- **Active time:** the existing foreground-time estimate. A long visit with no tab changes can have much more time than a day with many brief hops.
+
+All new daily counters start when this version is installed; old time history is preserved without inventing past counts. The tracking switch pauses time, visits, hops, and daily blocked counts. Shield blocking and its lifetime achievement counter continue. Clear statistics and JSON export include the new counters. No scrolling, typing, search terms, page contents, or passwords are recorded.
 
 ## Personality in version 1.1
 
@@ -39,6 +60,8 @@ Settings & privacy has separate switches for Playful mode and Crying GIF effects
 
 Keep the **same extension folder** used for Load unpacked. Pull this repository or replace that folder's contents with the new ZIP contents, then click Mind Shield's **Reload** button at `chrome://extensions`. Close old extension pages and reopen the popup/dashboard. The upgrade preserves your blocked list, usage, active Shield start time, and saved sessions. Removing and reinstalling deletes extension data; it is unnecessary for this update.
 
+Version 1.2 adds Chrome's `webNavigation` permission to count navigations and catch blocked paths inside web apps. If Chrome asks you to approve the added permission, review and accept it to continue using the updated extension. Loading a different version folder as a separate unpacked extension may give it a different extension ID and separate data. To retain your history, use the same original folder and Reload; do not remove the old installation. If you choose a fresh install from the version folder instead, disable the older copy so two Shields do not run at once.
+
 ## Privacy and permissions
 
 All records stay in `chrome.storage.local` on your device. Temporary tracking checkpoints and pending challenges stay in `chrome.storage.session`. There are no analytics, external fonts, network uploads, content scripts, page scraping, or remotely loaded scripts. Export produces a local JSON file.
@@ -47,12 +70,13 @@ All records stay in `chrome.storage.local` on your device. Temporary tracking ch
 | --- | --- |
 | `declarativeNetRequestWithHostAccess` | Redirect matching website navigations to the local blocked page. |
 | `http://*/*`, `https://*/*` | Allow blocking arbitrary websites you add. Chrome may display a broad website-access warning. |
-| `tabs` | Identify the foreground domain and redirect already-open blocked sites. Full URLs are read transiently; only hostnames are saved. |
+| `tabs` | Identify the foreground domain and redirect already-open blocked sites. Browsing URLs are read transiently; activity history stores per-domain totals. |
+| `webNavigation` | Count top-level foreground page loads and history changes, and redirect blocked paths inside web apps. |
 | `idle` | Pause usage measurement when the computer is idle or locked. |
 | `alarms` | Checkpoint usage approximately every 30 seconds. |
 | `storage` | Keep local settings, statistics, and session history. |
 
-Only domain names, daily time totals, settings, your chosen reminder, Shield session timestamps, achievement counters, and the last twenty unlock receipts are retained. `www.` is grouped with the base hostname; other subdomains have separate usage rows. Usage is automatically trimmed to the latest 90 calendar days when usage is recorded. Completed session history keeps the last 100 entries. Total protected time includes older sessions until statistics are cleared. Clearing statistics also resets badges and receipts; it keeps the active Shield start time, website list, reminder, and preferences. Uninstalling removes the extension's local storage; export first if you want a backup. Export is a backup for your own records; importing is not included.
+Only blocked domains and paths, daily per-domain time/visit/hop/blocked totals, settings, your chosen reminder, Shield session timestamps, achievement counters, and the last twenty unlock receipts are retained. Temporary navigation deduplication IDs are stored in session storage without browsing URLs. `www.` is grouped with the base hostname; other subdomains have separate activity rows. Daily records are automatically trimmed to the latest 90 calendar days when tracking refreshes. Completed session history keeps the last 100 entries. Total protected time includes older sessions until statistics are cleared. Clearing statistics also resets activity counters, badges, and receipts; it keeps the active Shield start time, website list, reminder, and preferences. Uninstalling removes the extension's local storage; export first if you want a backup. Export is a backup for your own records; importing is not included.
 
 ## Limits and measurement details
 

@@ -38,7 +38,13 @@ let rules = [],
   failRules = false,
   focused = true,
   idle = "active",
-  tab = { id: 1, url: "https://example.com", incognito: false };
+  tab = {
+    id: 1,
+    url: "https://example.com",
+    incognito: false,
+    active: true,
+    windowId: 1,
+  };
 let time = new Date(2026, 9, 5, 12).getTime();
 const realNow = Date.now;
 Date.now = () => time;
@@ -52,6 +58,9 @@ globalThis.chrome = {
     onInstalled: event("installed"),
   },
   declarativeNetRequest: {
+    async isRegexSupported() {
+      return { isSupported: true };
+    },
     async getDynamicRules() {
       return structuredClone(rules);
     },
@@ -85,6 +94,10 @@ globalThis.chrome = {
     onFocusChanged: event("focus"),
   },
   tabs: {
+    async get(id) {
+      if (id === tab.id) return structuredClone(tab);
+      throw new Error("No tab");
+    },
     async query() {
       return [structuredClone(tab)];
     },
@@ -94,6 +107,10 @@ globalThis.chrome = {
     onActivated: event("activated"),
     onUpdated: event("updated"),
     onRemoved: event("removed"),
+  },
+  webNavigation: {
+    onCommitted: event("committed"),
+    onHistoryStateUpdated: event("history"),
   },
 };
 await import("../background.js");
@@ -350,6 +367,143 @@ test("background worker enforces protection, accounts foreground time, and handl
     assert.equal(current.receipts[0].shieldStillOn, false);
     assert.equal(current.receipts[1].shieldStillOn, true);
     assert.ok(current.milestones.earned.mathEscape);
+
+    // Existing broad rules cannot silently override a narrower entry.
+    assert.equal(
+      (await send("ADD_DOMAIN", { domain: "facebook.com/watch" })).ok,
+      false,
+    );
+    assert.equal(
+      (await send("ADD_DOMAIN", { domain: "sms.scpc.com/revenue" })).ok,
+      true,
+    );
+    assert.ok((await state()).domains.includes("sms.scpc.com/revenue"));
+    assert.equal(
+      (await send("ADD_DOMAIN", { domain: "sms.scpc.com/revenue?secret=1" }))
+        .ok,
+      false,
+    );
+    await send("SET_TRACKING", { enabled: true });
+    tab = {
+      id: 1,
+      url: "https://youtube.com/watch",
+      incognito: false,
+      active: true,
+      windowId: 1,
+    };
+    await state();
+    let stamp = 100;
+    const navigate = async (kind = "committed", extras = {}) => {
+      const details = {
+        tabId: tab.id,
+        frameId: 0,
+        documentId: "document-1",
+        timeStamp: ++stamp,
+        url: tab.url,
+        ...extras,
+      };
+      events[kind][0](details);
+      await state();
+      return details;
+    };
+    const first = await navigate();
+    assert.equal(
+      (await state()).activity[dayKey(time)]["youtube.com"].visits,
+      1,
+    );
+    events.committed[0](first);
+    events.updated[0](tab.id, { status: "complete" }, tab);
+    events.alarm[0]({ name: "usage-checkpoint" });
+    await state();
+    assert.equal(
+      (await state()).activity[dayKey(time)]["youtube.com"].visits,
+      1,
+      "duplicate, complete, and polling events cannot add visits",
+    );
+    await navigate(); // An actual reload counts.
+    tab.url = "https://youtube.com/shorts";
+    await navigate("history");
+    await navigate("committed", { frameId: 1 });
+    assert.equal(
+      (await state()).activity[dayKey(time)]["youtube.com"].visits,
+      3,
+    );
+
+    tab = { ...tab, id: 2, url: "https://x.com/home" };
+    events.activated[0]({ tabId: 2, windowId: 1 });
+    await state();
+    events.activated[0]({ tabId: 2, windowId: 1 });
+    await state();
+    assert.equal((await state()).activity[dayKey(time)]["x.com"].hops, 1);
+    assert.equal((await state()).activity[dayKey(time)]["x.com"].visits, 0);
+    tab = { ...tab, id: 1, url: "https://youtube.com/shorts" };
+    events.activated[0]({ tabId: 1, windowId: 1 });
+    await state();
+    assert.equal((await state()).activity[dayKey(time)]["youtube.com"].hops, 1);
+
+    const beforeRestart = structuredClone((await state()).activity);
+    for (const name of Object.keys(events)) events[name] = [];
+    await import("../background.js?worker-restart");
+    assert.deepEqual(
+      (await state()).activity,
+      beforeRestart,
+      "worker restart must not add visits or hops",
+    );
+    events.activated[0]({ tabId: 1, windowId: 1 });
+    await state();
+    assert.deepEqual(
+      (await state()).activity,
+      beforeRestart,
+      "duplicate activation after restart must not add hops",
+    );
+
+    const beforePaused = structuredClone((await state()).activity);
+    await send("SET_TRACKING", { enabled: false });
+    await navigate();
+    events.activated[0]({ tabId: 1, windowId: 1 });
+    await state();
+    assert.deepEqual((await state()).activity, beforePaused);
+    await send("SET_TRACKING", { enabled: true });
+    for (const mode of ["background", "unfocused", "idle", "incognito"]) {
+      tab.active = mode !== "background";
+      focused = mode !== "unfocused";
+      idle = mode === "idle" ? "idle" : "active";
+      tab.incognito = mode === "incognito";
+      await navigate();
+    }
+    assert.deepEqual(
+      (await state()).activity,
+      beforePaused,
+      "excluded activity must not add visits",
+    );
+    tab = { ...tab, active: true, incognito: false };
+    focused = true;
+    idle = "active";
+    await send("ENABLE");
+    tab.url = "https://sms.scpc.com/uptime";
+    await navigate("history");
+    assert.equal(tab.url, "https://sms.scpc.com/uptime");
+    tab.url = "https://sms.scpc.com/revenue/monthly";
+    await navigate("history");
+    assert.ok(
+      tab.url.includes("blocked.html?site=sms.scpc.com%2Frevenue"),
+      "SPA navigation must redirect only the blocked path",
+    );
+    events.updated[0](tab.id, { status: "complete" }, tab);
+    await state();
+    assert.equal(
+      (await state()).activity[dayKey(time)]["sms.scpc.com"].blocked,
+      1,
+    );
+    const removal = (
+      await send("REQUEST_ACTION", {
+        action: { type: "remove", domain: "sms.scpc.com/revenue" },
+      })
+    ).challenge;
+    assert.ok(removal, "path removal must retain the math gate");
+    await send("CLEAR_STATS");
+    assert.deepEqual((await state()).activity, {});
+    assert.equal((await state()).shield.enabled, true);
   } finally {
     Date.now = realNow;
   }

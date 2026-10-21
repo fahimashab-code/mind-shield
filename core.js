@@ -22,11 +22,12 @@ export const CHECKPOINT_LIMIT_MS = 45_000;
 
 export function initialState() {
   return {
-    version: 2,
+    version: 3,
     shield: { enabled: false, startedAt: null, totalMs: 0, sessions: [] },
     domains: [...DEFAULT_DOMAINS],
     tracking: true,
     usage: {},
+    activity: {},
     preferences: { playful: true, memeEffects: true, reminder: "" },
     milestones: {
       sessionsStarted: 0,
@@ -81,6 +82,38 @@ export function hostnameOf(url) {
   }
 }
 
+// Keep legacy domain-only entries intact; a path is an explicit, narrower rule.
+export function normalizeTarget(input) {
+  const host = normalizeDomain(input);
+  const text = input.trim();
+  const url = new URL(text.includes("://") ? text : `https://${text}`);
+  if (url.search || url.hash)
+    throw new Error(
+      "Use a domain or URL path without a query (?) or fragment (#).",
+    );
+  const path = url.pathname.replace(/\/+$/, "");
+  if (path.length > 1024)
+    throw new Error("That path is too long. Use a shorter URL path.");
+  return host + path;
+}
+
+export function matchingTarget(url, targets) {
+  const host = hostnameOf(url);
+  if (!host) return null;
+  const path = new URL(url).pathname;
+  return (
+    targets.find((target) => {
+      const slash = target.indexOf("/");
+      const domain = slash < 0 ? target : target.slice(0, slash);
+      const prefix = slash < 0 ? "" : target.slice(slash);
+      return (
+        matchesDomain(host, [domain]) &&
+        (!prefix || path === prefix || path.startsWith(`${prefix}/`))
+      );
+    }) ?? null
+  );
+}
+
 export function matchesDomain(host, domains) {
   return (
     !!host &&
@@ -89,17 +122,49 @@ export function matchesDomain(host, domains) {
 }
 
 export function buildRules(domains, extensionUrl) {
-  return domains.map((domain, index) => ({
-    id: index + 1,
-    priority: 1,
-    action: {
-      type: "redirect",
-      redirect: {
-        url: `${extensionUrl}blocked.html?site=${encodeURIComponent(domain)}`,
+  return domains.map((domain, index) => {
+    const slash = domain.indexOf("/");
+    const host = slash < 0 ? domain : domain.slice(0, slash);
+    const path = slash < 0 ? "" : domain.slice(slash);
+    const escaped = path.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return {
+      id: index + 1,
+      priority: 1,
+      action: {
+        type: "redirect",
+        redirect: {
+          url: `${extensionUrl}blocked.html?site=${encodeURIComponent(domain)}`,
+        },
       },
-    },
-    condition: { requestDomains: [domain], resourceTypes: ["main_frame"] },
-  }));
+      condition: {
+        requestDomains: [host],
+        resourceTypes: ["main_frame"],
+        ...(path
+          ? {
+              regexFilter: `^https?://[^/]+${escaped}([/?#]|$)`,
+              isUrlFilterCaseSensitive: true,
+            }
+          : {}),
+      },
+    };
+  });
+}
+
+export function pruneDaily(records, time) {
+  const cutoff = new Date(time);
+  cutoff.setDate(cutoff.getDate() - 89);
+  const keepFrom = dayKey(cutoff.getTime());
+  for (const day of Object.keys(records))
+    if (day < keepFrom) delete records[day];
+}
+
+export function addActivity(activity, host, kind, time) {
+  if (!host || !["visits", "hops", "blocked"].includes(kind)) return;
+  const day = dayKey(time);
+  activity[day] ??= {};
+  activity[day][host] ??= { visits: 0, hops: 0, blocked: 0 };
+  activity[day][host][kind] += 1;
+  pruneDaily(activity, time);
 }
 
 export function makeChallenge(
@@ -154,10 +219,7 @@ export function addUsage(usage, host, start, end) {
     usage[day][host] = (usage[day][host] ?? 0) + stop - cursor;
     cursor = stop;
   }
-  const cutoff = new Date(end);
-  cutoff.setDate(cutoff.getDate() - 89);
-  const keepFrom = dayKey(cutoff.getTime());
-  for (const day of Object.keys(usage)) if (day < keepFrom) delete usage[day];
+  pruneDaily(usage, end);
 }
 
 export function stopShield(shield, now) {

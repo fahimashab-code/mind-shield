@@ -42,7 +42,8 @@ export function upgradeState(state) {
     ...(state.milestones || {}),
   };
   state.receipts ??= [];
-  state.version = 2;
+  state.activity ??= {};
+  state.version = 3;
   if (legacy)
     awardBadges(
       state,
