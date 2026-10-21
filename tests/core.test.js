@@ -12,7 +12,77 @@ import {
   stopShield,
   buildRules,
   formatDuration,
+  normalizeTarget,
+  matchingTarget,
+  addActivity,
 } from "../core.js";
+
+test("path rules preserve URL boundaries and agree with network filters", () => {
+  assert.equal(
+    normalizeTarget(" HTTPS://WWW.sms.scpc.com/revenue/ "),
+    "sms.scpc.com/revenue",
+  );
+  assert.equal(normalizeTarget("sms.scpc.com/"), "sms.scpc.com");
+  assert.equal(normalizeTarget("example.com/café"), "example.com/caf%C3%A9");
+  for (const input of [
+    "example.com/revenue?q=1",
+    "example.com/#/revenue",
+    "https://user:pass@example.com/revenue",
+    "example.com/" + "a".repeat(1025),
+  ])
+    assert.throws(() => normalizeTarget(input));
+  for (const target of [
+    "sms.scpc.com/revenue",
+    "sms.scpc.com/a.b+(c)",
+    "example.com/caf%C3%A9",
+  ]) {
+    const rule = buildRules([target], "chrome-extension://test/")[0];
+    const pattern = new RegExp(rule.condition.regexFilter);
+    const host = target.split("/")[0];
+    const path = target.slice(host.length);
+    for (const [url, expected] of [
+      [`https://${host}${path}`, true],
+      [`http://www.${host}${path}/monthly?q=1`, true],
+      [`https://${host}:8443${path}?q=1`, true],
+      [`https://${host}${path}-other`, false],
+      [`https://${host}/uptime`, false],
+      [`https://${host}${path.toUpperCase()}`, false],
+    ]) {
+      assert.equal(!!matchingTarget(url, [target]), expected, url);
+      assert.equal(pattern.test(url), expected, `DNR path: ${url}`);
+    }
+    for (const url of [
+      `https://not${host}${path}`,
+      `https://${host}.evil.test${path}`,
+      `https://other.test/?next=${host}${path}`,
+    ])
+      assert.equal(matchingTarget(url, [target]), null);
+    assert.deepEqual(rule.condition.requestDomains, [host]);
+    assert.equal(rule.condition.isUrlFilterCaseSensitive, true);
+    assert.ok(rule.action.redirect.url.includes(encodeURIComponent(target)));
+  }
+});
+
+test("activity splits by local day and keeps only ninety days", () => {
+  const activity = {
+    "2025-01-01": { "example.com": { visits: 2, hops: 3, blocked: 0 } },
+  };
+  const before = new Date(2026, 9, 20, 23, 59, 59).getTime();
+  addActivity(activity, "youtube.com", "visits", before);
+  addActivity(activity, "youtube.com", "hops", before + 2000);
+  addActivity(activity, "youtube.com", "blocked", before + 2000);
+  assert.deepEqual(activity["2026-10-20"]["youtube.com"], {
+    visits: 1,
+    hops: 0,
+    blocked: 0,
+  });
+  assert.deepEqual(activity["2026-10-21"]["youtube.com"], {
+    visits: 0,
+    hops: 1,
+    blocked: 1,
+  });
+  assert.equal(activity["2025-01-01"], undefined);
+});
 
 test("domains accept pasted URLs, normalize www, and reject unsafe input", () => {
   assert.equal(

@@ -1,12 +1,14 @@
 import {
   initialState,
-  normalizeDomain,
+  normalizeTarget,
   hostnameOf,
-  matchesDomain,
+  matchingTarget,
   buildRules,
   makeChallenge,
   answersMatch,
   addUsage,
+  addActivity,
+  pruneDaily,
   stopShield,
   MAX_DOMAINS,
 } from "./core.js";
@@ -21,6 +23,8 @@ let state;
 let checkpoint = null;
 let challenge = null;
 let viewedBlockedTabs = {};
+let activityCursor = null;
+let navigationEvents = {};
 const now = () => Date.now();
 const save = () => chrome.storage.local.set({ state });
 
@@ -55,30 +59,42 @@ async function redirectExisting() {
       .filter(
         (tab) =>
           !tab.incognito &&
-          matchesDomain(hostnameOf(tab.pendingUrl || tab.url), state.domains),
+          matchingTarget(tab.pendingUrl || tab.url, state.domains),
       )
       .map((tab) =>
         chrome.tabs.update(tab.id, {
           url: chrome.runtime.getURL(
-            `blocked.html?site=${encodeURIComponent(hostnameOf(tab.pendingUrl || tab.url))}`,
+            `blocked.html?site=${encodeURIComponent(matchingTarget(tab.pendingUrl || tab.url, state.domains))}`,
           ),
         }),
       ),
   );
 }
 
-async function refreshTracking() {
+async function refreshTracking(countHop = false) {
   settle(now());
+  pruneDaily(state.usage, now());
+  pruneDaily(state.activity, now());
+  let nextCursor = null;
   if (state.tracking && (await chrome.idle.queryState(60)) === "active") {
     const win = await chrome.windows.getLastFocused().catch(() => null);
     if (win?.focused) {
       const [tab] = await chrome.tabs.query({ active: true, windowId: win.id });
       const host = tab && !tab.incognito ? hostnameOf(tab.url) : null;
-      if (host && !(state.shield.enabled && matchesDomain(host, state.domains)))
+      // Remember internal pages too, so returning from the dashboard is a hop.
+      if (tab && !tab.incognito) nextCursor = { tabId: tab.id };
+      if (
+        host &&
+        !(state.shield.enabled && matchingTarget(tab.url, state.domains))
+      ) {
+        if (countHop && activityCursor && activityCursor.tabId !== tab.id)
+          addActivity(state.activity, host, "hops", now());
         checkpoint = { host, at: now() };
+      }
     }
   }
-  await chrome.storage.session.set({ checkpoint });
+  activityCursor = nextCursor;
+  await chrome.storage.session.set({ checkpoint, activityCursor });
   await save();
 }
 
@@ -92,10 +108,14 @@ async function initialize() {
     "checkpoint",
     "challenge",
     "viewedBlockedTabs",
+    "activityCursor",
+    "navigationEvents",
   ]);
   checkpoint = session.checkpoint ?? null;
   challenge = session.challenge ?? null;
   viewedBlockedTabs = session.viewedBlockedTabs ?? {};
+  activityCursor = session.activityCursor ?? null;
+  navigationEvents = session.navigationEvents ?? {};
   if (challenge) challenge.solved ??= Array(7).fill(false);
   chrome.idle.setDetectionInterval(60);
   await syncRules();
@@ -188,7 +208,7 @@ async function recordBlockedVisit(tabId, info, tab) {
       parsed.host === chrome.runtime.id &&
       parsed.pathname === "/blocked.html"
     )
-      site = normalizeDomain(parsed.searchParams.get("site"));
+      site = normalizeTarget(parsed.searchParams.get("site"));
   } catch {
     /* Ignore pages without a known blocked domain. */
   }
@@ -197,13 +217,53 @@ async function recordBlockedVisit(tabId, info, tab) {
     info.status === "complete" &&
     state.shield.enabled &&
     !tab?.incognito &&
-    matchesDomain(site, state.domains) &&
+    matchingTarget(`https://${site}`, state.domains) &&
     viewedBlockedTabs[tabId] !== url
   ) {
     viewedBlockedTabs[tabId] = url;
     registerMilestone(state, "blockedVisits", now());
+    if (state.tracking)
+      addActivity(
+        state.activity,
+        hostnameOf(`https://${site}`),
+        "blocked",
+        now(),
+      );
   }
   await chrome.storage.session.set({ viewedBlockedTabs });
+}
+
+async function recordNavigation(details, kind) {
+  if (details.frameId !== 0 || details.documentLifecycle === "prerender")
+    return;
+  const tab = await chrome.tabs.get(details.tabId).catch(() => null);
+  if (!tab || tab.incognito) return;
+  // DNR handles network loads; this also covers client-side history routes.
+  if (state.shield.enabled && matchingTarget(details.url, state.domains)) {
+    await chrome.tabs.update(tab.id, {
+      url: chrome.runtime.getURL(
+        `blocked.html?site=${encodeURIComponent(matchingTarget(details.url, state.domains))}`,
+      ),
+    });
+    await refreshTracking();
+    return;
+  }
+  const signature = `${kind}:${details.documentId}:${details.timeStamp}`;
+  if (navigationEvents[tab.id] === signature) return;
+  navigationEvents[tab.id] = signature;
+  await chrome.storage.session.set({ navigationEvents });
+  const win = await chrome.windows.getLastFocused().catch(() => null);
+  const host = hostnameOf(details.url);
+  if (
+    state.tracking &&
+    host &&
+    tab.active &&
+    win?.focused &&
+    tab.windowId === win.id &&
+    (await chrome.idle.queryState(60)) === "active"
+  )
+    addActivity(state.activity, host, "visits", now());
+  await refreshTracking();
 }
 
 function publicChallenge() {
@@ -252,11 +312,26 @@ async function handle(message) {
       return { state };
     }
     case "ADD_DOMAIN": {
-      const domain = normalizeDomain(message.domain);
+      const domain = normalizeTarget(message.domain);
       if (state.domains.includes(domain))
         throw new Error("That website is already on your list.");
       if (state.domains.length >= MAX_DOMAINS)
         throw new Error(`You can block up to ${MAX_DOMAINS} websites.`);
+      if (matchingTarget(`https://${domain}`, state.domains))
+        throw new Error(
+          "That address is already covered by a broader rule. Remove the broader rule first to block only a path.",
+        );
+      const rule = buildRules([domain], chrome.runtime.getURL(""))[0];
+      if (rule.condition.regexFilter) {
+        const supported = await chrome.declarativeNetRequest.isRegexSupported({
+          regex: rule.condition.regexFilter,
+          isCaseSensitive: true,
+        });
+        if (!supported.isSupported)
+          throw new Error(
+            "Chrome cannot use that path. Try a shorter URL path.",
+          );
+      }
       const previous = [...state.domains];
       state.domains.push(domain);
       try {
@@ -319,6 +394,7 @@ async function handle(message) {
       return {};
     case "SET_TRACKING":
       settle(now());
+      activityCursor = null;
       state.tracking = message.enabled === true;
       await refreshTracking();
       return { state };
@@ -344,6 +420,7 @@ async function handle(message) {
     case "CLEAR_STATS":
       checkpoint = null;
       state.usage = {};
+      state.activity = {};
       state.shield.sessions = [];
       state.shield.totalMs = 0;
       state.milestones = {
@@ -377,7 +454,13 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
 });
 
 const tick = () => enqueue(refreshTracking);
-chrome.tabs.onActivated.addListener(tick);
+chrome.tabs.onActivated.addListener(() => enqueue(() => refreshTracking(true)));
+chrome.webNavigation.onCommitted.addListener((details) =>
+  enqueue(() => recordNavigation(details, "page")),
+);
+chrome.webNavigation.onHistoryStateUpdated.addListener((details) =>
+  enqueue(() => recordNavigation(details, "history")),
+);
 chrome.tabs.onUpdated.addListener((tabId, info, tab) => {
   if (info.url || info.status === "complete")
     enqueue(async () => {
@@ -389,11 +472,14 @@ chrome.tabs.onUpdated.addListener((tabId, info, tab) => {
 chrome.tabs.onRemoved.addListener((tabId) =>
   enqueue(async () => {
     delete viewedBlockedTabs[tabId];
-    await chrome.storage.session.set({ viewedBlockedTabs });
+    delete navigationEvents[tabId];
+    await chrome.storage.session.set({ viewedBlockedTabs, navigationEvents });
     await refreshTracking();
   }),
 );
-chrome.windows.onFocusChanged.addListener(tick);
+chrome.windows.onFocusChanged.addListener(() =>
+  enqueue(() => refreshTracking(true)),
+);
 chrome.idle.onStateChanged.addListener(tick);
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === "usage-checkpoint") tick();

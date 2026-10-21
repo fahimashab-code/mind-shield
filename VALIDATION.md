@@ -1,4 +1,24 @@
-# Validation — 5 October 2026
+# Validation
+
+## Version 1.2 — 21 October 2026
+
+- `npm test`: **15 tests passed**. Added checks for path normalization, exact path/subpage boundaries, case sensitivity, escaped regex characters, invalid query/fragment input, daily retention, version 1.1 migration, Today/week aggregation, foreground visit counting, reload and history navigation, duplicate events, tab hops, worker restart, paused/background/idle/incognito exclusions, path removal challenges, and clearing counters. Existing protection, math, rollback, and playful-mode tests also pass.
+- `npm run check`: manifest resources, JavaScript syntax, local HTML references, and the no-inline-handler check pass. `git diff --check` passes.
+- The extension version is 1.2.0 and the persisted state schema is version 3. The only new permission is `webNavigation`; there are no additional hosts, content scripts, or network services.
+
+Verified the actual unpacked extension in an isolated Chromium profile through Playwright:
+
+- Added `sms.scpc.com/revenue` through the dashboard; the stored rule retained `/revenue`, and Chrome accepted its case-sensitive dynamic regex filter restricted to that hostname and main-frame requests.
+- Used a local HTTP test website with a separate `127.0.0.1/revenue` rule. `/uptime` and `/revenue-other` loaded while Shield was enabled. `/revenue?month=october` redirected to the blocked page, which displayed the path. This test did not access the user's live management website.
+- Clicking a local test button that changed the URL to `/revenue/monthly` through `history.pushState` also redirected to the blocked page.
+- The recorded sequence produced four successful foreground visits, one return by tab switching, and two blocked encounters. Reloading the blocked page retained one encounter until navigation away and another attempt.
+- Search for an absent site displayed the empty result and zero filtered totals. The rendered activity rows and totals agreed with the real extension storage.
+- Closing and reopening the isolated browser retained the exact Shield start timestamp, blocked rules, daily usage, and visit/hop/blocked totals without adding phantom counts.
+- Desktop (1440 px) and narrow (390 px) dashboard/activity screenshots were visually inspected. The narrow document width equaled the viewport width, with all four activity values readable.
+
+Migration from state version 2 and privacy exclusions are covered by automated tests using controlled data. The user's personal Chrome installation was not modified. Visit and hop counters begin with this version and do not reconstruct earlier browsing.
+
+## Earlier validation — 5 October 2026
 
 ## Version 1.1 update
 

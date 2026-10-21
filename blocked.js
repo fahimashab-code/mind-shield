@@ -1,4 +1,4 @@
-import { normalizeDomain } from "./core.js";
+import { normalizeTarget } from "./core.js";
 import { blockedMessage } from "./playful.js";
 import { renderMascot, renderReminder } from "./mascot.js";
 import { setMemeEffects } from "./meme-effects.js";
@@ -6,7 +6,7 @@ import { setMemeEffects } from "./meme-effects.js";
 let site = "";
 try {
   const input = new URLSearchParams(location.search).get("site");
-  if (input) site = normalizeDomain(input);
+  if (input) site = normalizeTarget(input);
 } catch {
   /* Do not display invalid URL input. */
 }

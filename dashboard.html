@@ -30,7 +30,7 @@
         <div class="sidebar-bottom">
           <span class="local-dot"></span> Everything stays here.
           <p>Your data lives on this device.</p>
-          <span class="version">VERSION 1.1.0</span>
+          <span class="version">VERSION 1.2.0</span>
         </div>
       </aside>
       <main class="workspace">
@@ -91,9 +91,9 @@
                   <p id="tracking-summary">Active browsing across websites</p>
                 </section>
                 <section class="card metric">
-                  <span class="eyebrow">WEBSITES ON YOUR LIST</span
+                  <span class="eyebrow">BLOCKING RULES</span
                   ><strong id="site-count">—</strong>
-                  <p>Including their subdomains</p>
+                  <p>Whole websites or specific URL paths</p>
                 </section>
                 <section class="card metric">
                   <span class="eyebrow">COMPLETED SESSIONS</span
@@ -134,7 +134,7 @@
           <section class="card usage-card">
             <div class="section-heading">
               <div>
-                <h2>Where your time goes</h2>
+                <h2>Your browsing patterns</h2>
                 <p class="muted small">
                   Only the foreground tab counts. Idle time takes a pause.
                 </p>
@@ -145,6 +145,38 @@
                 ><button data-days="7" aria-pressed="false">This week</button>
               </div>
             </div>
+            <label for="site-search" class="small">Find a website</label>
+            <input
+              id="site-search"
+              class="site-search"
+              type="search"
+              placeholder="Search Facebook, YouTube, twitter…"
+              autocomplete="off"
+            />
+            <p id="activity-scope" class="micro">Today · all websites</p>
+            <div class="activity-summary">
+              <div>
+                <strong id="period-visits">0</strong><span>Page visits</span>
+              </div>
+              <div>
+                <strong id="period-hops">0</strong><span>Tab hops</span>
+              </div>
+              <div>
+                <strong id="period-blocked">0</strong
+                ><span>Blocked encounters</span>
+              </div>
+            </div>
+            <p class="micro">
+              Visits count foreground page loads, reloads, and in-app URL
+              changes. Tab hops count switches to another website tab, including
+              returns. Blocked encounters count once per blocked tab until you
+              navigate away. Background and idle browsing are excluded from
+              visits and hops.
+            </p>
+            <p class="micro">
+              Counts start with version 1.2. Existing time history stays
+              available. Use Today or This week to spot repeated detours.
+            </p>
             <div id="usage-list"></div>
           </section>
           <section class="card sessions-card">
@@ -181,12 +213,13 @@
             </div>
           </div>
           <section class="card">
-            <h2>Add a website</h2>
+            <h2>Add a website or URL path</h2>
             <form id="add-form" class="add-form">
-              <label for="domain" class="sr-only">Website domain</label
+              <label for="domain" class="sr-only"
+                >Website domain or URL path</label
               ><input
                 id="domain"
-                placeholder="example.com"
+                placeholder="example.com or sms.scpc.com/revenue"
                 type="text"
                 maxlength="2048"
                 autocomplete="off"
@@ -196,7 +229,11 @@
               </button>
             </form>
             <p class="muted small">
-              Paste a domain or URL. All paths and subdomains are included.
+              A domain blocks the entire website and its subdomains. A path such
+              as sms.scpc.com/revenue blocks /revenue and its subpages, leaving
+              /uptime available. Paths are case-sensitive; omit queries (?) and
+              fragments (#). Existing whole-site rules must be removed before
+              narrowing them to a path.
             </p>
           </section>
           <div class="section-heading list-heading">
@@ -282,7 +319,8 @@
               <h2>Website usage tracking</h2>
               <p class="muted small">
                 Track the active tab while Chrome is focused. Pause after 60
-                seconds without input.
+                seconds without input. This switch also pauses visit, tab-hop,
+                and daily blocked-encounter counts.
               </p>
             </div>
             <label class="switch"
@@ -309,16 +347,20 @@
             <p class="eyebrow">LOCAL BY DESIGN</p>
             <h2>No account. No uploads.</h2>
             <p class="muted">
-              Mind Shield stores domains, time totals, your chosen reminder,
-              settings, session timestamps, achievements, and the last 20 unlock
-              receipts. It does not collect text typed on websites, page
-              contents, or passwords. Usage history is kept for 90 days; the
-              last 100 completed Shield sessions are saved.
+              Mind Shield stores blocked domains and paths, daily time and
+              activity totals, your chosen reminder, settings, session
+              timestamps, achievements, and the last 20 unlock receipts. It does
+              not collect text typed on websites, page contents, or passwords.
+              Usage history is kept for 90 days; the last 100 completed Shield
+              sessions are saved.
             </p>
             <p class="muted small">
               Website access lets Chrome redirect your blocked sites. Tab access
-              identifies the current domain. Idle detection pauses the tracker.
-              Alarms save usage periodically. Storage remembers your settings.
+              identifies the current domain. Navigation access counts page
+              visits and catches blocked paths inside web apps. Browsing URLs
+              are read transiently; only per-domain totals are kept in your
+              history. Idle detection pauses the tracker. Alarms save usage
+              periodically. Storage remembers your settings.
             </p>
             <div class="setting-actions">
               <button id="export" class="button secondary">
